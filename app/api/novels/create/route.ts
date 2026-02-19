@@ -4,7 +4,7 @@ import { Novel } from "@/models/Novel";
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = "guest_user_123";
+    const userId = "000000000000000000000001";
     const { title, writerPersonaId, worldSettings } = await req.json();
 
     if (!title || !writerPersonaId) {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = "guest_user_123";
+    const userId = "000000000000000000000001";
     await dbConnect();
     const novels = await Novel.find({ userId }).populate("writerPersonaId");
     return NextResponse.json({ success: true, novels });

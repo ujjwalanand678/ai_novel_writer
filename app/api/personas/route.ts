@@ -4,7 +4,7 @@ import { WriterPersona } from "@/models/WriterPersona";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = "guest_user_123";
+    const userId = "000000000000000000000001";
     await dbConnect();
     const personas = await WriterPersona.find({ userId });
     return NextResponse.json({ success: true, personas });

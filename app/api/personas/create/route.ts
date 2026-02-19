@@ -4,14 +4,15 @@ import { WriterPersona } from "@/models/WriterPersona";
 export async function POST(req: NextRequest) {
   try {
     // Lazy load dependencies to avoid build-time issues
+    // Import the core logic directly to avoid buggy debug code in index.js
     // @ts-ignore
-    const pdf = require("pdf-parse");
+    const pdf = require("pdf-parse/lib/pdf-parse.js");
     // @ts-ignore
     const mammoth = require("mammoth");
     // @ts-ignore
     const EPub = require("node-epub");
 
-    const userId = "guest_user_123"; // No auth mode
+    const userId = "000000000000000000000001"; // Valid ObjectId hex string for no auth mode
 
     const formData = await req.formData();
     const name = formData.get("name") as string;
@@ -38,11 +39,25 @@ export async function POST(req: NextRequest) {
         const result = await mammoth.extractRawText({ buffer });
         combinedText += result.value + "\n";
       } else if (file.name.endsWith(".epub")) {
-        // Basic epub text extraction (simplified for this context)
-        // node-epub usually needs a file path, so we'd need to save it temporarily
-        // or use a different parser that takes a buffer.
-        // For now, let's add a placeholder or attempt a quick read if possible.
-        combinedText += "[EPUB Text Extraction Placeholder]\n";
+        try {
+          // EPUBs are ZIP files. We can extract text from .html and .xhtml files.
+          // @ts-ignore
+          const AdmZip = require("adm-zip");
+          const zip = new AdmZip(buffer);
+          const entries = zip.getEntries();
+          
+          for (const entry of entries) {
+            if (entry.entryName.endsWith(".xhtml") || entry.entryName.endsWith(".html")) {
+              const html = entry.getData().toString("utf-8");
+              // Basic tag stripping for style analysis
+              const text = html.replace(/<[^>]*>?/gm, ' ');
+              combinedText += text + "\n";
+            }
+          }
+        } catch (epubError) {
+          console.error("Error parsing EPUB:", epubError);
+          combinedText += "[EPUB Extraction Failed]\n";
+        }
       } else {
         // Plain text as fallback
         combinedText += buffer.toString("utf-8") + "\n";

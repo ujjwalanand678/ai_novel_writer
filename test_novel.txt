@@ -1,0 +1,3 @@
+This is a test novel content for testing the persona creation feature. It should be long enough to pass basic validation if any. The tone is meant to be balanced and the pacing fast.
+Once upon a time, there was a writer who wanted to automate their work. They used AI to help them write more effectively.
+The END.

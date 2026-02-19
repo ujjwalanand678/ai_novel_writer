@@ -4,7 +4,7 @@ import { WriterPersona } from "@/models/WriterPersona";
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = "guest_user_123";
+    const userId = "000000000000000000000001";
     const { message, personaId } = await req.json();
     
     await dbConnect();

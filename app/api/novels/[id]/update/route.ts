@@ -7,7 +7,7 @@ export async function PATCH(
   props: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = "guest_user_123";
+    const userId = "000000000000000000000001";
     const body = await req.json();
     const params = await props.params;
     const { id } = params;
@@ -35,7 +35,7 @@ export async function GET(
   props: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = "guest_user_123";
+    const userId = "000000000000000000000001";
     const params = await props.params;
     const { id } = params;
     await dbConnect();
