@@ -1,35 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { Plus, Book, Users, Trash2, ExternalLink, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Dashboard() {
-  const { data: session } = useSession();
   const [novels, setNovels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (session) {
-      fetch("/api/novels/create")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) setNovels(data.novels);
-          setLoading(false);
-        });
-    }
-  }, [session]);
+    fetch("/api/novels/create")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setNovels(data.novels);
+        setLoading(false);
+      });
+  }, []);
 
-  if (!session) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <p className="text-white text-xl">Please sign in to view your dashboard.</p>
-      </div>
-    );
-  }
 
   return (
     <main className="min-h-screen">

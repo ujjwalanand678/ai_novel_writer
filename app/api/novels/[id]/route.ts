@@ -1,22 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]/route";
 import dbConnect from "@/lib/mongodb";
 import { Novel } from "@/models/Novel";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userId = "guest_user_123";
 
+    const params = await props.params;
     const { id } = params;
     await dbConnect();
-    const deletedNovel = await Novel.findOneAndDelete({ _id: id, userId: session.user.id });
+    const deletedNovel = await Novel.findOneAndDelete({ _id: id, userId });
 
     if (!deletedNovel) {
       return NextResponse.json({ error: "Novel not found" }, { status: 404 });

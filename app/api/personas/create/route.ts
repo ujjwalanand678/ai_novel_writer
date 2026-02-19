@@ -1,19 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]/route";
 import dbConnect from "@/lib/mongodb";
 import { WriterPersona } from "@/models/WriterPersona";
-import pdf from "pdf-parse";
-import mammoth from "mammoth";
-// @ts-ignore
-import EPub from "node-epub";
-
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Lazy load dependencies to avoid build-time issues
+    // @ts-ignore
+    const pdf = require("pdf-parse");
+    // @ts-ignore
+    const mammoth = require("mammoth");
+    // @ts-ignore
+    const EPub = require("node-epub");
+
+    const userId = "guest_user_123"; // No auth mode
 
     const formData = await req.formData();
     const name = formData.get("name") as string;
@@ -61,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     await dbConnect();
     const newPersona = await WriterPersona.create({
-      userId: session.user.id,
+      userId,
       name,
       description: `Persona based on ${sourceFiles.join(", ")}`,
       sourceFiles,

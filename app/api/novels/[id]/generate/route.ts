@@ -1,24 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../../auth/[...nextauth]/route";
 import dbConnect from "@/lib/mongodb";
 import { Novel } from "@/models/Novel";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userId = "guest_user_123";
 
     const { chapterIndex, summary, targetWordCount, charactersPresent } = await req.json();
+    const params = await props.params;
     const { id } = params;
 
     await dbConnect();
-    const novel = await Novel.findOne({ _id: id, userId: session.user.id }).populate("writerPersonaId");
+    const novel = await Novel.findOne({ _id: id, userId }).populate("writerPersonaId");
     
     if (!novel) {
       return NextResponse.json({ error: "Novel not found" }, { status: 404 });

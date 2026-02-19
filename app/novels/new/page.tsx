@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 import { Book, Check, ChevronRight, Loader2, Sparkles, UserCheck } from "lucide-react";
 
 export default function NewNovel() {
   const router = useRouter();
-  const { data: session } = useSession();
   const [title, setTitle] = useState("");
   const [personas, setPersonas] = useState<any[]>([]);
   const [selectedPersona, setSelectedPersona] = useState("");
@@ -16,15 +14,13 @@ export default function NewNovel() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (session) {
-      fetch("/api/personas")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) setPersonas(data.personas);
-          setLoading(false);
-        });
-    }
-  }, [session]);
+    fetch("/api/personas")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setPersonas(data.personas);
+        setLoading(false);
+      });
+  }, []);
 
   const handleSubmit = async () => {
     if (!title || !selectedPersona) return;
@@ -55,7 +51,6 @@ export default function NewNovel() {
     }
   };
 
-  if (!session) return null;
 
   return (
     <main className="min-h-screen">

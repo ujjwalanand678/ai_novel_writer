@@ -1,11 +1,10 @@
-import { useSession } from "next-auth/react";
-import Navbar from "@/components/Navbar";
 import Link from "next/link";
-import { Plus, Book, Users, ScrollText } from "lucide-react";
+import Navbar from "@/components/Navbar";
+import { Book, Users, ScrollText } from "lucide-react";
 
 export default function Home() {
   return (
-    <main className="min-height-screen">
+    <main className="min-h-screen">
       <Navbar />
       
       <div className="pt-32 pb-20 px-4 max-w-7xl mx-auto text-center">

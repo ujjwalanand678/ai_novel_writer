@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
-import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 import { 
   Plus, Users, Globe, BookText, Settings, 
@@ -14,7 +13,6 @@ import { useDebounce } from "@/hooks/useDebounce";
 
 export default function WritingStudio() {
   const { novelId } = useParams();
-  const { data: session } = useSession();
   const [novel, setNovel] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"editor" | "characters" | "world" | "chat">("editor");
@@ -37,7 +35,7 @@ export default function WritingStudio() {
   const [selectedChars, setSelectedChars] = useState<string[]>([]);
 
   useEffect(() => {
-    if (session && novelId) {
+    if (novelId) {
       fetch(`/api/novels/${novelId}/update`)
         .then((res) => res.json())
         .then((data) => {
@@ -50,7 +48,7 @@ export default function WritingStudio() {
           setLoading(false);
         });
     }
-  }, [session, novelId]);
+  }, [novelId]);
 
   // Handle Auto-save
   useEffect(() => {
@@ -170,7 +168,7 @@ export default function WritingStudio() {
     }
   };
 
-  if (!session || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <Loader2 className="w-10 h-10 animate-spin text-purple-500" />

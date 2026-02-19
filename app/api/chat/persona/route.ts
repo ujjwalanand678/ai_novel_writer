@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]/route";
 import dbConnect from "@/lib/mongodb";
 import { WriterPersona } from "@/models/WriterPersona";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const userId = "guest_user_123";
     const { message, personaId } = await req.json();
     
     await dbConnect();

@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]/route";
 import dbConnect from "@/lib/mongodb";
 import { Novel } from "@/models/Novel";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const userId = "guest_user_123";
     const { title, writerPersonaId, worldSettings } = await req.json();
 
     if (!title || !writerPersonaId) {
@@ -19,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     await dbConnect();
     const newNovel = await Novel.create({
-      userId: session.user.id,
+      userId,
       writerPersonaId,
       title,
       worldSettings: worldSettings || {},
@@ -37,13 +31,9 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const userId = "guest_user_123";
     await dbConnect();
-    const novels = await Novel.find({ userId: session.user.id }).populate("writerPersonaId");
+    const novels = await Novel.find({ userId }).populate("writerPersonaId");
     return NextResponse.json({ success: true, novels });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed to fetch novels" }, { status: 500 });

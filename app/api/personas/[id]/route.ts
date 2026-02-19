@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]/route";
 import dbConnect from "@/lib/mongodb";
 import { WriterPersona } from "@/models/WriterPersona";
 import { Novel } from "@/models/Novel";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userId = "guest_user_123";
 
+    const params = await props.params;
     const { id } = params;
     await dbConnect();
 
@@ -24,7 +20,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Cannot delete persona: used by existing novels." }, { status: 400 });
     }
 
-    const deletedPersona = await WriterPersona.findOneAndDelete({ _id: id, userId: session.user.id });
+    const deletedPersona = await WriterPersona.findOneAndDelete({ _id: id, userId });
 
     if (!deletedPersona) {
       return NextResponse.json({ error: "Persona not found" }, { status: 404 });
