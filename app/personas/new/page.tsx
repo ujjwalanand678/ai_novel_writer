@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { Upload, FileText, CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import { useDropzone } from "react-dropzone";
+import { toast } from "sonner";
 
 export default function NewPersona() {
   const router = useRouter();
@@ -50,11 +51,14 @@ export default function NewPersona() {
       const data = await res.json();
 
       if (data.success) {
+        toast.success("Persona created successfully!");
         router.push("/dashboard");
       } else {
+        toast.error(data.error || "Failed to create persona");
         setError(data.error || "Failed to create persona");
       }
     } catch (err) {
+      toast.error("Something went wrong. Please try again.");
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);

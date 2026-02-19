@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { Plus, Book, Users, Trash2, ExternalLink, Clock } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const { data: session } = useSession();
@@ -100,7 +101,19 @@ export default function Dashboard() {
                     <span>Open Editor</span>
                     <ExternalLink className="w-3 h-3" />
                   </Link>
-                  <button className="p-2 text-gray-500 hover:text-red-400 transition-colors">
+                  <button 
+                    onClick={async () => {
+                      if (!confirm("Are you sure you want to delete this novel?")) return;
+                      const res = await fetch(`/api/novels/${novel._id}`, { method: "DELETE" });
+                      if (res.ok) {
+                        toast.success("Novel deleted successfully");
+                        setNovels(novels.filter(n => n._id !== novel._id));
+                      } else {
+                        toast.error("Failed to delete novel");
+                      }
+                    }}
+                    className="p-2 text-gray-500 hover:text-red-400 transition-colors"
+                  >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>

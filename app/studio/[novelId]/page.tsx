@@ -1,26 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 import { 
   Plus, Users, Globe, BookText, Settings, 
   Sparkles, Save, Download, Loader2, ChevronRight,
-  UserPlus, Zap, Wand2, FileDown
+  UserPlus, Zap, Wand2, FileDown, MessageSquare
 } from "lucide-react";
+import { toast } from "sonner";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export default function WritingStudio() {
   const { novelId } = useParams();
   const { data: session } = useSession();
   const [novel, setNovel] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"editor" | "characters" | "world">("editor");
+  const [activeTab, setActiveTab] = useState<"editor" | "characters" | "world" | "chat">("editor");
   const [activeChapterIndex, setActiveChapterIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // States for generating chapter
+  // Auto-save logic
+  const [contentToSave, setContentToSave] = useState("");
+  const debouncedContent = useDebounce(contentToSave, 2000); // Auto-save after 2s of inactivity
+
+  // Chat states
+  const [chatMessage, setChatMessage] = useState("");
+  const [chatHistory, setChatHistory] = useState<{role: 'user'|'ai', content: string}[]>([]);
+  const [isChatting, setIsChatting] = useState(false);
+
+  // Generator states
   const [chapterSummary, setChapterSummary] = useState("");
   const [targetWordCount, setTargetWordCount] = useState(1000);
   const [selectedChars, setSelectedChars] = useState<string[]>([]);
@@ -30,11 +41,52 @@ export default function WritingStudio() {
       fetch(`/api/novels/${novelId}/update`)
         .then((res) => res.json())
         .then((data) => {
-          if (data.success) setNovel(data.novel);
+          if (data.success) {
+             setNovel(data.novel);
+             if (data.novel.chapters[0]) {
+               setContentToSave(data.novel.chapters[0].content || "");
+             }
+          }
           setLoading(false);
         });
     }
   }, [session, novelId]);
+
+  // Handle Auto-save
+  useEffect(() => {
+    if (debouncedContent && novel && novel.chapters[activeChapterIndex]?.content !== debouncedContent) {
+      handleAutoSave();
+    }
+  }, [debouncedContent]);
+
+  const handleAutoSave = async () => {
+    setIsSaving(true);
+    const updatedChapters = [...novel.chapters];
+    if (updatedChapters[activeChapterIndex]) {
+       updatedChapters[activeChapterIndex].content = debouncedContent;
+    }
+    
+    try {
+      // Optimistic update
+      setNovel((prev: any) => ({ ...prev, chapters: updatedChapters }));
+      
+      await fetch(`/api/novels/${novelId}/update`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chapters: updatedChapters }),
+      });
+      // Silent success for auto-save to avoid spam
+    } catch (err) {
+      toast.error("Auto-save failed");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const manualSave = async () => {
+     await handleAutoSave();
+     toast.success("Draft saved successfully");
+  };
 
   const saveNovel = async (updatedData: any) => {
     setIsSaving(true);
@@ -45,9 +97,12 @@ export default function WritingStudio() {
         body: JSON.stringify(updatedData),
       });
       const data = await res.json();
-      if (data.success) setNovel(data.novel);
+      if (data.success) {
+         setNovel(data.novel);
+         toast.success("Changes saved");
+      }
     } catch (err) {
-      console.error(err);
+      toast.error("Failed to save changes");
     } finally {
       setIsSaving(false);
     }
@@ -69,10 +124,14 @@ export default function WritingStudio() {
       const data = await res.json();
       if (data.success) {
         setNovel(data.novel);
+        setContentToSave(data.novel.chapters[activeChapterIndex].content);
         setChapterSummary("");
+        toast.success("Chapter generated!");
+      } else {
+        toast.error("Generation failed");
       }
     } catch (err) {
-      console.error(err);
+      toast.error("Generation failed");
     } finally {
       setIsGenerating(false);
     }
@@ -80,6 +139,35 @@ export default function WritingStudio() {
 
   const handleDownload = () => {
     window.open(`/api/novels/${novelId}/download`, "_blank");
+    toast.success("Download started");
+  };
+
+  const sendChatMessage = async () => {
+    if (!chatMessage.trim()) return;
+    
+    const newMessage = { role: 'user' as const, content: chatMessage };
+    setChatHistory(prev => [...prev, newMessage]);
+    setChatMessage("");
+    setIsChatting(true);
+
+    try {
+      const res = await fetch("/api/chat/persona", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          message: chatMessage, 
+          personaId: novel.writerPersonaId._id || novel.writerPersonaId 
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setChatHistory(prev => [...prev, { role: 'ai', content: data.reply }]);
+      }
+    } catch (err) {
+      toast.error("Failed to send message");
+    } finally {
+      setIsChatting(false);
+    }
   };
 
   if (!session || loading) {
@@ -125,12 +213,32 @@ export default function WritingStudio() {
                 <Globe className="w-4 h-4" />
                 <span className="text-sm font-medium">World Setting</span>
               </button>
+               <button 
+                onClick={() => setActiveTab("chat")}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'chat' ? 'bg-pink-500/10 text-pink-400' : 'text-gray-400 hover:bg-white/5'}`}
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span className="text-sm font-medium">Ask Persona</span>
+              </button>
             </nav>
 
             <div className="space-y-4 pt-4 border-t border-white/5">
                <div className="flex items-center justify-between px-2">
                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Chapters</h3>
-                 <button className="text-gray-400 hover:text-white transition-colors">
+                 <button 
+                    onClick={() => {
+                        const newChapters = [...novel.chapters, { 
+                            title: `Chapter ${novel.chapters.length + 1}`, 
+                            content: "", 
+                            order: novel.chapters.length 
+                        }];
+                        setNovel({...novel, chapters: newChapters});
+                        setActiveChapterIndex(newChapters.length - 1);
+                        setContentToSave("");
+                        manualSave();
+                    }}
+                    className="text-gray-400 hover:text-white transition-colors"
+                 >
                    <Plus className="w-4 h-4" />
                  </button>
                </div>
@@ -138,7 +246,11 @@ export default function WritingStudio() {
                  {novel.chapters?.map((chapter: any, index: number) => (
                    <button
                     key={index}
-                    onClick={() => { setActiveChapterIndex(index); setActiveTab("editor"); }}
+                    onClick={() => { 
+                        setActiveChapterIndex(index); 
+                        setActiveTab("editor");
+                        setContentToSave(chapter.content || "");
+                    }}
                     className={`w-full flex items-center justify-between px-4 py-2 border rounded-xl text-sm transition-all ${activeChapterIndex === index ? 'border-purple-500/30 bg-purple-500/5 text-purple-400' : 'border-transparent text-gray-500 hover:bg-white/5'}`}
                    >
                      <span className="truncate">{chapter.title}</span>
@@ -168,11 +280,15 @@ export default function WritingStudio() {
                 <div>
                   <h2 className="text-3xl font-bold">{novel.chapters[activeChapterIndex]?.title || "New Chapter"}</h2>
                   <p className="text-sm text-gray-500 mt-1">
-                    {novel.chapters[activeChapterIndex]?.content?.length || 0} characters
+                    {contentToSave.length} characters
                   </p>
                 </div>
-                <div className="flex space-x-3">
-                  <button className="flex items-center space-x-2 px-4 py-2 glass rounded-xl text-sm font-medium hover:bg-white/10 transition-all">
+                <div className="flex space-x-3 items-center">
+                  {isSaving && <span className="text-xs text-gray-500 animate-pulse">Saving...</span>}
+                  <button 
+                    onClick={manualSave}
+                    className="flex items-center space-x-2 px-4 py-2 glass rounded-xl text-sm font-medium hover:bg-white/10 transition-all"
+                  >
                     <Save className="w-4 h-4" />
                     <span>Save Draft</span>
                   </button>
@@ -183,15 +299,8 @@ export default function WritingStudio() {
                 <textarea
                   className="w-full h-full bg-transparent border-none outline-none resize-none text-gray-300 leading-relaxed text-lg font-serif"
                   placeholder="The story begins here..."
-                  value={novel.chapters[activeChapterIndex]?.content || ""}
-                  onChange={(e) => {
-                    const newChapters = [...novel.chapters];
-                    if (!newChapters[activeChapterIndex]) {
-                       newChapters[activeChapterIndex] = { title: "New Chapter", content: "", order: activeChapterIndex };
-                    }
-                    newChapters[activeChapterIndex].content = e.target.value;
-                    setNovel({ ...novel, chapters: newChapters });
-                  }}
+                  value={contentToSave}
+                  onChange={(e) => setContentToSave(e.target.value)}
                 />
               </div>
 
@@ -236,7 +345,7 @@ export default function WritingStudio() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                       <label className="text-xs font-bold text-gray-500 uppercase tracking-widest px-1">Target Word Count: {targetWordCount}</label>
+                       <label className="text-xs font-bold text-gray-600 uppercase tracking-widest px-1">Target Word Count: {targetWordCount}</label>
                        <input 
                         type="range" min="500" max="3000" step="500"
                         value={targetWordCount}
@@ -365,6 +474,57 @@ export default function WritingStudio() {
                   </div>
                 </div>
             </div>
+          )}
+
+          {activeTab === "chat" && (
+             <div className="p-8 max-w-4xl mx-auto h-full flex flex-col">
+               <div className="glass p-6 rounded-t-3xl border-b border-white/5 flex items-center justify-between">
+                 <h2 className="text-xl font-bold flex items-center space-x-2 text-pink-400">
+                   <MessageSquare className="w-5 h-5" />
+                   <span>Chat with {novel.writerPersonaId?.name}</span>
+                 </h2>
+               </div>
+               <div className="flex-1 glass p-6 overflow-y-auto space-y-4">
+                 {chatHistory.length === 0 ? (
+                    <div className="text-center text-gray-500 py-10">
+                      <p>Ask me anything about your plot, characters, or style!</p>
+                    </div>
+                 ) : (
+                    chatHistory.map((msg, i) => (
+                      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-pink-600 text-white' : 'bg-white/10 text-gray-200'}`}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))
+                 )}
+                 {isChatting && (
+                   <div className="flex justify-start">
+                     <div className="bg-white/10 px-4 py-2 rounded-2xl flex items-center space-x-2">
+                       <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" />
+                       <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce delay-75" />
+                       <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce delay-150" />
+                     </div>
+                   </div>
+                 )}
+               </div>
+               <div className="glass p-4 rounded-b-3xl border-t border-white/5 flex space-x-2">
+                 <input 
+                   value={chatMessage}
+                   onChange={(e) => setChatMessage(e.target.value)}
+                   onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
+                   placeholder="Type your question..."
+                   className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-pink-500/50"
+                 />
+                 <button 
+                  onClick={sendChatMessage}
+                  disabled={isChatting || !chatMessage.trim()}
+                  className="bg-pink-600 hover:bg-pink-700 text-white px-4 rounded-xl transition-all disabled:opacity-50"
+                 >
+                   <ChevronRight className="w-5 h-5" />
+                 </button>
+               </div>
+             </div>
           )}
         </section>
       </div>
